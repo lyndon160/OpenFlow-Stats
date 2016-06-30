@@ -21,7 +21,7 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
-
+import pprint
 
 class SimpleSwitch13(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
@@ -35,13 +35,29 @@ class SimpleSwitch13(app_manager.RyuApp):
         req = ofp_parser.OFPTableStatsRequest(datapath, 0)
         datapath.send_msg(req)
 
+
+    def send_table_features_stats_request(self, datapath):
+    	ofp_parser = datapath.ofproto_parser
+    	req = ofp_parser.OFPTableFeaturesStatsRequest(datapath, 0)
+    	datapath.send_msg(req)
+	print "sending table features request"
+
+
+    @set_ev_cls(ofp_event.EventOFPTableFeaturesStatsReply, MAIN_DISPATCHER)
+    def table_features_reply_handler(self, ev):
+	print "table features reply received"
+	for table in ev.msg.body:
+		pprint.pprint(table)
+		#print "table: name=%s id=%s size=%d" % (table.name, table.table_id, table.max_entries)
+
+
     @set_ev_cls(ofp_event.EventOFPTableStatsReply, MAIN_DISPATCHER)
     def table_stats_reply_handler(self, ev):
         tables = []
         for stat in ev.msg.body:
-            tables.append('table_id=%d active_count=%d lookup_count=%d ' ' matched_count=%d' % (stat.table_id, stat.active_count,
-                                                                                                           stat.lookup_count, stat.matched_count))
-        self.logger.debug('TableStats: %s', tables)
+		print stat
+            #tables.append('table_id=%d active_count=%d lookup_count=%d ' ' matched_count=%d' % (stat.table_id, stat.active_count,                                                                                               stat.lookup_count, stat.matched_count))
+       # self.logger.debug('TableStats: %s', tables)
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -61,7 +77,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
-        self.send_table_stats_request(datapath)
+        self.send_table_features_stats_request(datapath)
 
     def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
